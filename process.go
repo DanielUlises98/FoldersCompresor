@@ -55,10 +55,10 @@ func getDirectories(parentDir string, outPath string) {
 	allDirs, _ := ioutil.ReadDir(parentDir)
 
 	// Getas the name of every file in the current directory
-	for _, folder := range allDirs {
+	for i, folder := range allDirs {
 		// Adds the number of current goroutines
 		wg.Add(1)
-		go func(folderName string) {
+		go func(i int, folderName string) {
 
 			// It drecrements the number of goroutines by 1 after
 			// the goroutine is done
@@ -97,8 +97,8 @@ func getDirectories(parentDir string, outPath string) {
 			case mode.IsRegular():
 				fmt.Println("Files without a parent directory cannot be compressed")
 			}
-			fmt.Println("The folder: " + getTheNames(folderName) + " was compressed SUCCESFULLY")
-		}(folder.Name())
+			fmt.Println(i, " The folder: "+getTheNames(folderName)+" was compressed SUCCESFULLY")
+		}(i, folder.Name())
 	}
 	//wait for the group of goroutines to end
 	wg.Wait()
@@ -128,7 +128,6 @@ func writeTheFiles(data dataPath) error {
 		if err != nil {
 			return err
 		}
-
 		f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
 		if err != nil {
 			return err
