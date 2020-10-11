@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 type dataPath struct {
@@ -18,7 +20,7 @@ type dataPath struct {
 
 // takeInaOuth ... asd
 func takeInaOuth() {
-	cDir, err := os.Getwd()
+	currentDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -34,57 +36,65 @@ func takeInaOuth() {
 	// It can be better...
 	var inPath = *input
 	if inPath == "." {
-		inPath = cDir
+		inPath = currentDir
 	}
 
 	var outPath = *output
 	if outPath[1:2] != ":" {
-		outPath = cDir + outPath
+		outPath = currentDir + outPath
 	}
+	defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
 	GetDirectories(inPath, outPath)
-	fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
 }
 
 // GetDirectories ... asd
 func GetDirectories(parentDir string, outPath string) {
-
+	defer timeTrack(time.Now(), "getdirectories")
+	wg := new(sync.WaitGroup)
 	// Gets all the folders inside of the given path
 	allDirs, _ := ioutil.ReadDir(parentDir)
 
 	// Getas the name of every file in the current directory
+
+	wg.Add(len(allDirs))
 	for _, folder := range allDirs {
+		go func(folderName string) {
 
-		childDir := parentDir + folder.Name()
+			defer wg.Done()
 
-		fi, err := os.Stat(childDir)
-		if err != nil {
-			fmt.Println(err)
-		}
-		//I validate if it's a file or a directory
-		switch mode := fi.Mode(); {
-		case mode.IsDir():
-			{
+			childDir := parentDir + folderName
 
-				childDir := childDir + "/"
-				// Get's all the files inside of the given path
-				filesInsideOf, _ := ioutil.ReadDir(childDir)
-
-				// If it's a directory , takes all the files from that directory an compress
-				// them into a single zip file
-				dt := dataPath{
-					Files:    filesInsideOf,
-					exitPath: outPath,
-					cDir:     childDir,
-					fName:    folder.Name(),
-				}
-				WriteTheFiles(dt)
+			fi, err := os.Stat(childDir)
+			if err != nil {
+				fmt.Println(err)
 			}
+			//I validate if it's a file or a directory
+			switch mode := fi.Mode(); {
+			case mode.IsDir():
+				{
 
-		case mode.IsRegular():
-			fmt.Println("Files without a parent directory cannot be compressed")
-		}
-		fmt.Println("The folder: " + GetTheNames(folder.Name()) + " was compressed SUCCESFULLY")
+					childDir := childDir + "/"
+					// Get's all the files inside of the given path
+					filesInsideOf, _ := ioutil.ReadDir(childDir)
+
+					// If it's a directory , takes all the files from that directory an compress
+					// them into a single zip file
+					dt := dataPath{
+						Files:    filesInsideOf,
+						exitPath: outPath,
+						cDir:     childDir,
+						fName:    folderName,
+					}
+					WriteTheFiles(dt)
+				}
+
+			case mode.IsRegular():
+				fmt.Println("Files without a parent directory cannot be compressed")
+			}
+			fmt.Println("The folder: " + GetTheNames(folderName) + " was compressed SUCCESFULLY")
+		}(folder.Name())
 	}
+	wg.Wait()
 }
 
 // WriteTheFiles ... weasd
@@ -138,8 +148,12 @@ func GetTheNames(name string) string {
 	return ""
 }
 
+func timeTrack(start time.Time, name string) {
+	elpased := time.Since(start)
+
+	fmt.Printf("%s took %s", name, elpased)
+}
 func main() {
 
 	takeInaOuth()
-
 }
