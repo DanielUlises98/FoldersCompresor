@@ -50,20 +50,26 @@ func takeInaOuth() {
 // GetDirectories ... asd
 func GetDirectories(parentDir string, outPath string) {
 	defer timeTrack(time.Now(), "getdirectories")
+	// Creates a new waiting group for the goroutines
 	wg := new(sync.WaitGroup)
 	// Gets all the folders inside of the given path
 	allDirs, _ := ioutil.ReadDir(parentDir)
 
-	// Getas the name of every file in the current directory
-
+	// Adds the number of current goroutines
 	wg.Add(len(allDirs))
+
+	// Getas the name of every file in the current directory
 	for _, folder := range allDirs {
 		go func(folderName string) {
 
+			// It drecrements the number of goroutines by 1 after
+			// the goroutine is done
 			defer wg.Done()
 
+			// Is the child folder inside the parent folder
 			childDir := parentDir + folderName
 
+			// Get the info of the current folder
 			fi, err := os.Stat(childDir)
 			if err != nil {
 				fmt.Println(err)
@@ -74,17 +80,19 @@ func GetDirectories(parentDir string, outPath string) {
 				{
 
 					childDir := childDir + "/"
+
 					// Get's all the files inside of the given path
 					filesInsideOf, _ := ioutil.ReadDir(childDir)
 
-					// If it's a directory , takes all the files from that directory an compress
-					// them into a single zip file
 					dt := dataPath{
 						Files:    filesInsideOf,
 						exitPath: outPath,
 						cDir:     childDir,
 						fName:    folderName,
 					}
+
+					// If it's a directory , takes all the files from that directory an compress
+					// them into a single zip file
 					WriteTheFiles(dt)
 				}
 
@@ -94,6 +102,7 @@ func GetDirectories(parentDir string, outPath string) {
 			fmt.Println("The folder: " + GetTheNames(folderName) + " was compressed SUCCESFULLY")
 		}(folder.Name())
 	}
+	//wait for the group of goroutines to end
 	wg.Wait()
 }
 
