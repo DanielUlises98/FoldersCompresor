@@ -54,11 +54,10 @@ func getDirectories(parentDir string, outPath string) {
 	// Gets all the folders inside of the given path
 	allDirs, _ := ioutil.ReadDir(parentDir)
 
-	// Adds the number of current goroutines
-	wg.Add(len(allDirs))
-
 	// Getas the name of every file in the current directory
 	for _, folder := range allDirs {
+		// Adds the number of current goroutines
+		wg.Add(1)
 		go func(folderName string) {
 
 			// It drecrements the number of goroutines by 1 after
