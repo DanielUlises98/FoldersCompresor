@@ -9,15 +9,16 @@ import (
 	"strings"
 )
 
-func main() {
-
-	TakeTheDirectories()
-
+type dataPath struct {
+	Files    []os.FileInfo
+	exitPath string
+	cDir     string
+	fName    string
 }
 
-// TakeTheDirectories ... asd
-func TakeTheDirectories() {
-	mydir, err := os.Getwd()
+// takeInaOuth ... asd
+func takeInaOuth() {
+	cDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -33,29 +34,29 @@ func TakeTheDirectories() {
 	// It can be better...
 	var inPath = *input
 	if inPath == "." {
-		inPath = mydir
+		inPath = cDir
 	}
 
 	var outPath = *output
 	if outPath[1:2] != ":" {
-		outPath = mydir + outPath
+		outPath = cDir + outPath
 	}
 	GetDirectories(inPath, outPath)
-	fmt.Println("You can find you'r compressed files here: " + "[" + outPath + "]")
+	fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
 }
 
 // GetDirectories ... asd
-func GetDirectories(inPath string, outPath string) {
+func GetDirectories(parentDir string, outPath string) {
 
 	// Gets all the folders inside of the given path
-	directories, _ := ioutil.ReadDir(inPath)
+	allDirs, _ := ioutil.ReadDir(parentDir)
 
 	// Getas the name of every file in the current directory
-	for _, folder := range directories {
+	for _, folder := range allDirs {
 
-		newDirectory := inPath + folder.Name()
+		childDir := parentDir + folder.Name()
 
-		fi, err := os.Stat(newDirectory)
+		fi, err := os.Stat(childDir)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -64,13 +65,19 @@ func GetDirectories(inPath string, outPath string) {
 		case mode.IsDir():
 			{
 
-				newDirectory := newDirectory + "/"
+				childDir := childDir + "/"
 				// Get's all the files inside of the given path
-				filesInsideOf, _ := ioutil.ReadDir(newDirectory)
+				filesInsideOf, _ := ioutil.ReadDir(childDir)
 
 				// If it's a directory , takes all the files from that directory an compress
 				// them into a single zip file
-				WriteTheFiles(outPath, newDirectory, folder.Name(), filesInsideOf)
+				dt := dataPath{
+					Files:    filesInsideOf,
+					exitPath: outPath,
+					cDir:     childDir,
+					fName:    folder.Name(),
+				}
+				WriteTheFiles(dt)
 			}
 
 		case mode.IsRegular():
@@ -81,10 +88,10 @@ func GetDirectories(inPath string, outPath string) {
 }
 
 // WriteTheFiles ... weasd
-func WriteTheFiles(fodlerWFolders string, fileDir string, folderName string, filesInsideDir []os.FileInfo) error {
+func WriteTheFiles(data dataPath) error {
 
 	// Creates the file with the given name
-	newZipFile, err := os.Create(fodlerWFolders + folderName + ".zip")
+	newZipFile, err := os.Create(data.exitPath + data.fName + ".zip")
 	if err != nil {
 		return err
 	}
@@ -98,14 +105,14 @@ func WriteTheFiles(fodlerWFolders string, fileDir string, folderName string, fil
 	// When it ends the defer is called and the process is terminated
 	defer zipWriter.Close()
 
-	for _, fileName := range filesInsideDir {
+	for _, fileName := range data.Files {
 		// Get's the whole file
-		dat, err := ioutil.ReadFile(fileDir + fileName.Name())
+		dat, err := ioutil.ReadFile(data.cDir + fileName.Name())
 		if err != nil {
 			return err
 		}
 
-		f, err := zipWriter.Create(folderName + "/" + fileName.Name())
+		f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
 		if err != nil {
 			return err
 		}
@@ -129,4 +136,10 @@ func GetTheNames(name string) string {
 		}
 	}
 	return ""
+}
+
+func main() {
+
+	takeInaOuth()
+
 }
