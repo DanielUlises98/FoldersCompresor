@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -50,51 +49,51 @@ func takeInaOuth() {
 // GetDirectories ... asd
 func GetDirectories(parentDir string, outPath string) {
 	defer timeTrack(time.Now(), "getdirectories")
-	wg := new(sync.WaitGroup)
+	//wg := new(sync.WaitGroup)
 	// Gets all the folders inside of the given path
 	allDirs, _ := ioutil.ReadDir(parentDir)
 
 	// Getas the name of every file in the current directory
 
-	wg.Add(len(allDirs))
+	//	wg.Add(len(allDirs))
 	for _, folder := range allDirs {
-		go func(folderName string) {
+		//		go func(folderName string) {
 
-			defer wg.Done()
+		//			defer wg.Done()
 
-			childDir := parentDir + folderName
+		childDir := parentDir + folder.Name()
 
-			fi, err := os.Stat(childDir)
-			if err != nil {
-				fmt.Println(err)
-			}
-			//I validate if it's a file or a directory
-			switch mode := fi.Mode(); {
-			case mode.IsDir():
-				{
+		fi, err := os.Stat(childDir)
+		if err != nil {
+			fmt.Println(err)
+		}
+		//I validate if it's a file or a directory
+		switch mode := fi.Mode(); {
+		case mode.IsDir():
+			{
 
-					childDir := childDir + "/"
-					// Get's all the files inside of the given path
-					filesInsideOf, _ := ioutil.ReadDir(childDir)
+				childDir := childDir + "/"
+				// Get's all the files inside of the given path
+				filesInsideOf, _ := ioutil.ReadDir(childDir)
 
-					// If it's a directory , takes all the files from that directory an compress
-					// them into a single zip file
-					dt := dataPath{
-						Files:    filesInsideOf,
-						exitPath: outPath,
-						cDir:     childDir,
-						fName:    folderName,
-					}
-					WriteTheFiles(dt)
+				// If it's a directory , takes all the files from that directory an compress
+				// them into a single zip file
+				dt := dataPath{
+					Files:    filesInsideOf,
+					exitPath: outPath,
+					cDir:     childDir,
+					fName:    folder.Name(),
 				}
-
-			case mode.IsRegular():
-				fmt.Println("Files without a parent directory cannot be compressed")
+				WriteTheFiles(dt)
 			}
-			fmt.Println("The folder: " + GetTheNames(folderName) + " was compressed SUCCESFULLY")
-		}(folder.Name())
+
+		case mode.IsRegular():
+			fmt.Println("Files without a parent directory cannot be compressed")
+		}
+		fmt.Println("The folder: " + GetTheNames(folder.Name()) + " was compressed SUCCESFULLY")
+		//		}(folder.Name())
 	}
-	wg.Wait()
+	//	wg.Wait()
 }
 
 // WriteTheFiles ... weasd
