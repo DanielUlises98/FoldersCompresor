@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
-	"time"
+	"strconv"
 )
 
-type dataPath struct {
+var (
+	inPath, outPath string
+	allDirs         []os.FileInfo
+	numbJobs        int
+)
+
+//DataPath ... as
+type DataPath struct {
 	files    []os.FileInfo
 	exitPath string
 	cDir     string
@@ -33,110 +39,131 @@ func takeInaOuth() {
 
 	// Some sort of validations
 	// It can be better...
-	var inPath = *input
+	inPath = *input
 	if inPath == "." {
 		inPath = currentDir
 	}
 
-	var outPath = *output
+	outPath = *output
 	if outPath[1:2] != ":" {
 		outPath = currentDir + outPath
 	}
-	defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
-	getDirectories(inPath, outPath)
+	allDirs, _ = ioutil.ReadDir(inPath)
+	numbJobs = len(allDirs)
+
+	//defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
+}
+func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
+	for i := 0; i < nrw; i++ {
+		go writeTheFiles(i, jobs, results)
+	}
 }
 
-// getDirectories ... asd
-func getDirectories(parentDir string, outPath string) {
-	defer timeTrack(time.Now(), "getdirectories")
+// sendJobsF ... asd
+func sendJobsF(jobs chan DataPath) {
+
 	// Creates a new waiting group for the goroutines
-	wg := new(sync.WaitGroup)
 	// Gets all the folders inside of the given path
-	allDirs, _ := ioutil.ReadDir(parentDir)
 
+	//SEND JOBS
 	// Getas the name of every file in the current directory
-	for i, folder := range allDirs {
+	for _, folder := range allDirs {
+
 		// Adds the number of current goroutines
-		wg.Add(1)
-		go func(i int, folderName string) {
 
-			// It drecrements the number of goroutines by 1 after
-			// the goroutine is done
-			defer wg.Done()
+		// It drecrements the number of goroutines by 1 after
+		// the goroutine is done
 
-			// Is the child folder inside the parent folder
-			childDir := parentDir + folderName
+		// Is the child folder inside the parent folder
+		childDir := inPath + folder.Name()
 
-			// Get the info of the current folder
-			fi, err := os.Stat(childDir)
-			if err != nil {
-				fmt.Println(err)
-			}
-			//I validate if it's a file or a directory
-			switch mode := fi.Mode(); {
-			case mode.IsDir():
-				{
+		// Get the info of the current folder
 
-					childDir := childDir + "/"
+		fi, err := os.Stat(childDir)
+		if err != nil {
+			fmt.Println(err)
+		}
+		//I validate if it's a file or a directory
+		switch mode := fi.Mode(); {
+		case mode.IsDir():
+			{
 
-					// Get's all the files inside of the given path
-					filesInsideOf, _ := ioutil.ReadDir(childDir)
+				childDir := childDir + "/"
+				// Get's all the files inside of the given path
+				filesInsideOf, _ := ioutil.ReadDir(childDir)
 
-					dt := dataPath{
-						files:    filesInsideOf,
-						exitPath: outPath,
-						cDir:     childDir,
-						fName:    folderName,
-					}
-
-					// If it's a directory , takes all the files from that directory an compress
-					// them into a single zip file
-					writeTheFiles(dt)
+				jobs <- DataPath{
+					files:    filesInsideOf,
+					exitPath: outPath,
+					cDir:     childDir,
+					fName:    folder.Name(),
 				}
 
-			case mode.IsRegular():
-				fmt.Println("Files without a parent directory cannot be compressed")
+				// If it's a directory , takes all the files from that directory an compress
+				// them into a single zip file
+
+				//WORKER
+				//writeTheFiles(dt)
 			}
-			fmt.Println(i, " The folder: "+getTheNames(folderName)+" was compressed SUCCESFULLY")
-		}(i, folder.Name())
+
+		case mode.IsRegular():
+			fmt.Println("Files without a parent directory cannot be compressed")
+			numbJobs--
+		}
+		//Needs to be used in other place
+		//fmt.Println(i, " The folder: "+getTheNames(folder.Name())+" was compressed SUCCESFULLY")
 	}
+	close(jobs)
 	//wait for the group of goroutines to end
-	wg.Wait()
+
+}
+
+func recibeAnswers(numbJobs int, results chan DataPath) {
+	for i := 0; i < numbJobs; i++ {
+		data := <-results
+		fmt.Println(data.fName)
+	}
 }
 
 // writeTheFiles ... weasd
-func writeTheFiles(data dataPath) error {
+func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
 
 	// Creates the file with the given name
-	newZipFile, err := os.Create(data.exitPath + data.fName + ".zip")
-	if err != nil {
-		return err
-	}
-	// Needs to be open the whole process
-	// When it ends the defer is called and the process is terminated
-	defer newZipFile.Close()
 
-	// takes the created file and makes into a zip file
-	zipWriter := zip.NewWriter(newZipFile)
-	// Needs to be open the whole process
-	// When it ends the defer is called and the process is terminated
-	defer zipWriter.Close()
+	for data := range jobs {
+		newZipFile, err := os.Create(data.exitPath + data.fName + ".zip")
+		if err != nil {
+			fmt.Println(err)
+		}
 
-	for _, fileName := range data.files {
-		// Get's the whole file
-		dat, err := ioutil.ReadFile(data.cDir + fileName.Name())
-		if err != nil {
-			return err
+		// Needs to be open the whole process
+		// When it ends the defer is called and the process is terminated
+		defer newZipFile.Close()
+
+		// takes the created file and makes into a zip file
+		zipWriter := zip.NewWriter(newZipFile)
+		// Needs to be open the whole process
+		// When it ends the defer is called and the process is terminated
+		defer zipWriter.Close()
+
+		for _, fileName := range data.files {
+			// Get's the whole file
+			dat, err := ioutil.ReadFile(data.cDir + fileName.Name())
+			if err != nil {
+				fmt.Println(err)
+			}
+			f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
+			if err != nil {
+				fmt.Println(err)
+			}
+			// Writes the file into the zip file
+			_, err = f.Write(dat)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
-		f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
-		if err != nil {
-			return err
-		}
-		// Writes the file into the zip file
-		_, err = f.Write(dat)
-		if err != nil {
-			return err
-		}
+		data.fName = strconv.Itoa(id) + ": " + data.fName
+		results <- data
 	}
-	return nil
+
 }
