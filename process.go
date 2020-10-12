@@ -23,7 +23,7 @@ type DataPath struct {
 	fName    string
 }
 
-// takeInaOuth ... asd
+// takeInaOuth ... Initialize global variables of the program
 func takeInaOuth() {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -53,19 +53,17 @@ func takeInaOuth() {
 
 	//defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
 }
+
+// This function sets the amount of goroutines that are going to proces the data
 func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
 	for i := 0; i < nrw; i++ {
 		go writeTheFiles(i, jobs, results)
 	}
 }
 
-// sendJobsF ... asd
+// sendJobsF ... Sends a typeStruct to the goroutines that are running
 func sendJobsF(jobs chan DataPath) {
 
-	// Creates a new waiting group for the goroutines
-	// Gets all the folders inside of the given path
-
-	//SEND JOBS
 	// Getas the name of every file in the current directory
 	for _, folder := range allDirs {
 
@@ -78,46 +76,42 @@ func sendJobsF(jobs chan DataPath) {
 		childDir := inPath + folder.Name()
 
 		// Get the info of the current folder
-
+		// So
 		fi, err := os.Stat(childDir)
 		if err != nil {
 			fmt.Println(err)
 		}
-		//I validate if it's a file or a directory
+		//I can validate if it's a file or a directory
 		switch mode := fi.Mode(); {
 		case mode.IsDir():
 			{
-
+				//I add a slash to point inside the child directory
 				childDir := childDir + "/"
 				// Get's all the files inside of the given path
 				filesInsideOf, _ := ioutil.ReadDir(childDir)
 
+				//Builds the structure and  it sends them through a channel
 				jobs <- DataPath{
 					files:    filesInsideOf,
 					exitPath: outPath,
 					cDir:     childDir,
 					fName:    folder.Name(),
 				}
-
-				// If it's a directory , takes all the files from that directory an compress
-				// them into a single zip file
-
-				//WORKER
-				//writeTheFiles(dt)
 			}
 
 		case mode.IsRegular():
 			fmt.Println("Files without a parent directory cannot be compressed")
 			numbJobs--
 		}
-		//Needs to be used in other place
-		//fmt.Println(i, " The folder: "+getTheNames(folder.Name())+" was compressed SUCCESFULLY")
 	}
+	//	Close the channel so no more values will be sent to it
+	// so the recivers knows it don't longer need to wayt
 	close(jobs)
-	//wait for the group of goroutines to end
 
 }
 
+// Collects all the results of writeTheFiles
+// and ensures that the goroutines have finished
 func recibeAnswers(numbJobs int, results chan DataPath) {
 	for i := 0; i < numbJobs; i++ {
 		data := <-results
@@ -126,37 +120,44 @@ func recibeAnswers(numbJobs int, results chan DataPath) {
 }
 
 // writeTheFiles ... weasd
+//Is used by the goroutines
+// Takes a struct (DataPath) and uses it to create the zip files
+//while fetching the files that are inside of the child folder
 func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
 
-	// Creates the file with the given name
-
 	for data := range jobs {
+
+		// Creates the zip file with the given name
 		newZipFile, err := os.Create(data.exitPath + data.fName + ".zip")
 		if err != nil {
 			fmt.Println(err)
 		}
 
 		// Needs to be open the whole process
-		// When it ends the defer is called and the process is terminated
+		// When the function ends the defer is called and the process is terminated
 		defer newZipFile.Close()
 
 		// takes the created file and makes into a zip file
+		//Creates a new zip writer
 		zipWriter := zip.NewWriter(newZipFile)
+
 		// Needs to be open the whole process
-		// When it ends the defer is called and the process is terminated
+		// When the function ends the defer is called and the process is terminated
 		defer zipWriter.Close()
 
 		for _, fileName := range data.files {
-			// Get's the whole file
+			// Get's the whole file in a slice of bytes
 			dat, err := ioutil.ReadFile(data.cDir + fileName.Name())
 			if err != nil {
 				fmt.Println(err)
 			}
+
+			// creates the file inside of the zip
 			f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
 			if err != nil {
 				fmt.Println(err)
 			}
-			// Writes the file into the zip file
+			// Writes the bytes in the created file
 			_, err = f.Write(dat)
 			if err != nil {
 				fmt.Println(err)
