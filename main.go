@@ -7,7 +7,7 @@ import (
 func main() {
 
 	defer timeTrack(time.Now(), "Program ")
-	//Initialize main variables
+
 	takeInaOuth()
 	job := make(chan DataPath, numbJobs)
 	results := make(chan DataPath, numbJobs)
