@@ -5,14 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
+)
+
+const (
+	goRoutines = 4
 )
 
 var (
 	inPath, outPath string
 	allDirs         []os.FileInfo
-	numbJobs        int
+	numbJobs, nrs   int
 )
 
 //DataPath ... as
@@ -31,25 +36,29 @@ func takeInaOuth() {
 	}
 
 	// Get's the path with folders that are going to be compressed
-	input := flag.String("i", "", "the path to the directory with the folders,\n current dir is the default one")
-
+	input := flag.String("i", currentDir, "the path to the directory with the folders,\n current dir is the default one")
 	// Get's the path where the program is going to output the compressed zip f
-	output := flag.String("o", "", "Were the  zip files are going to be created,\n current dir is the default one ")
+	output := flag.String("o", currentDir, "Were the  zip files are going to be created,\n current dir is the default one ")
+
+	routines := flag.Int("gr", goRoutines, "The amount of goroutines you want the program to use")
 	flag.Parse()
 
-	// Some sort of validations
-	// It can be better...
-	inPath = *input
-	if inPath == "." {
-		inPath = currentDir
+	iPath, err := os.Stat(*input)
+	if os.IsNotExist(err) {
+		log.Fatal("The path : [", *input, "] does not exist")
 	}
+	oPath, err := os.Stat(*output)
+	if os.IsNotExist(err) {
+		fmt.Println("The output does not exist.\n making a new directory")
+		os.MkdirAll(*output, os.ModePerm)
+	} else if iPath.IsDir() && oPath.IsDir() {
+		inPath = *input
+		outPath = *output
+		nrs = *routines
 
-	outPath = *output
-	if outPath[1:2] != ":" {
-		outPath = currentDir + outPath
+		allDirs, _ = ioutil.ReadDir(inPath)
+		numbJobs = len(allDirs)
 	}
-	allDirs, _ = ioutil.ReadDir(inPath)
-	numbJobs = len(allDirs)
 
 	//defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
 }
