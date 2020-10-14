@@ -70,6 +70,15 @@ func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
 	}
 }
 
+// Collects all the results of writeTheFiles
+// and ensures that the goroutines have finished
+func recibeAnswers(numbJobs int, results chan DataPath) {
+	for i := 0; i < numbJobs; i++ {
+		data := <-results
+		fmt.Println(data.fName)
+	}
+}
+
 // sendJobsF ... Sends a typeStruct to the goroutines that are running
 func sendJobsF(jobs chan DataPath) {
 
@@ -119,19 +128,10 @@ func sendJobsF(jobs chan DataPath) {
 
 }
 
-// Collects all the results of writeTheFiles
-// and ensures that the goroutines have finished
-func recibeAnswers(numbJobs int, results chan DataPath) {
-	for i := 0; i < numbJobs; i++ {
-		data := <-results
-		fmt.Println(data.fName)
-	}
-}
-
 // writeTheFiles ... weasd
 //Is used by the goroutines
 // Takes a struct (DataPath) and uses it to create the zip files
-//while fetching the files that are inside of the child folder
+// while fetching the files that are inside of the child folder
 func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
 
 	for data := range jobs {
