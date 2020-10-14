@@ -2,22 +2,10 @@ package main
 
 import (
 	"archive/zip"
-	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
-)
-
-const (
-	goRoutines = 4
-)
-
-var (
-	inPath, outPath string
-	allDirs         []os.FileInfo
-	numbJobs, nrs   int
 )
 
 //DataPath ... as
@@ -29,42 +17,10 @@ type DataPath struct {
 }
 
 // takeInaOuth ... Initialize global variables of the program
-func takeInaOuth() {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Get's the path with folders that are going to be compressed
-	input := flag.String("i", currentDir, "the path to the directory with the folders,\n current dir is the default one")
-	// Get's the path where the program is going to output the compressed zip f
-	output := flag.String("o", currentDir, "Were the  zip files are going to be created,\n current dir is the default one ")
-
-	routines := flag.Int("gr", goRoutines, "The amount of goroutines you want the program to use")
-	flag.Parse()
-
-	iPath, err := os.Stat(*input)
-	if os.IsNotExist(err) {
-		log.Fatal("The path : [", *input, "] does not exist")
-	}
-	oPath, err := os.Stat(*output)
-	if os.IsNotExist(err) {
-		fmt.Println("The output does not exist.\n making a new directory")
-		os.MkdirAll(*output, os.ModePerm)
-	} else if iPath.IsDir() && oPath.IsDir() {
-		inPath = *input
-		outPath = *output
-		nrs = *routines
-
-		allDirs, _ = ioutil.ReadDir(inPath)
-		numbJobs = len(allDirs)
-	}
-
-	//defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
-}
 
 // This function sets the amount of goroutines that are going to proces the data
 func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
+
 	for i := 0; i < nrw; i++ {
 		go writeTheFiles(i, jobs, results)
 	}
@@ -91,7 +47,7 @@ func sendJobsF(jobs chan DataPath) {
 		// the goroutine is done
 
 		// Is the child folder inside the parent folder
-		childDir := inPath + folder.Name()
+		childDir := f.InPath + folder.Name()
 
 		// Get the info of the current folder
 		// So
@@ -111,7 +67,7 @@ func sendJobsF(jobs chan DataPath) {
 				//Builds the structure and  it sends them through a channel
 				jobs <- DataPath{
 					files:    filesInsideOf,
-					exitPath: outPath,
+					exitPath: f.OutPath,
 					cDir:     childDir,
 					fName:    folder.Name(),
 				}
@@ -120,6 +76,7 @@ func sendJobsF(jobs chan DataPath) {
 		case mode.IsRegular():
 			fmt.Println("Files without a parent directory cannot be compressed")
 			numbJobs--
+
 		}
 	}
 	//	Close the channel so no more values will be sent to it

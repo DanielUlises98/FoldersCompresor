@@ -1,6 +1,18 @@
 package main
 
-import "time"
+import (
+	"io/ioutil"
+	"os"
+	"time"
+
+	"github.com/DanielUlises98/FoldersCompresor/flags"
+)
+
+var (
+	f        = flags.InitFlags()
+	allDirs  []os.FileInfo
+	numbJobs int
+)
 
 // things to implement
 //1.-better validation almost
@@ -14,11 +26,13 @@ func main() {
 
 	defer timeTrack(time.Now(), "Program ")
 
-	takeInaOuth()
+	allDirs, _ = ioutil.ReadDir(f.InPath)
+	numbJobs = len(allDirs)
+
 	job := make(chan DataPath, numbJobs)
 	results := make(chan DataPath, numbJobs)
 
-	initializeWorkers(nrs, job, results)
+	initializeWorkers(f.NumbRoutines, job, results)
 	sendJobsF(job)
 	recibeAnswers(numbJobs, results)
 }
