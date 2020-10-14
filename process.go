@@ -2,17 +2,10 @@ package main
 
 import (
 	"archive/zip"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
-)
-
-var (
-	inPath, outPath string
-	allDirs         []os.FileInfo
-	numbJobs        int
 )
 
 //DataPath ... as
@@ -24,40 +17,21 @@ type DataPath struct {
 }
 
 // takeInaOuth ... Initialize global variables of the program
-func takeInaOuth() {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Get's the path with folders that are going to be compressed
-	input := flag.String("i", "", "the path to the directory with the folders,\n current dir is the default one")
-
-	// Get's the path where the program is going to output the compressed zip f
-	output := flag.String("o", "", "Were the  zip files are going to be created,\n current dir is the default one ")
-	flag.Parse()
-
-	// Some sort of validations
-	// It can be better...
-	inPath = *input
-	if inPath == "." {
-		inPath = currentDir
-	}
-
-	outPath = *output
-	if outPath[1:2] != ":" {
-		outPath = currentDir + outPath
-	}
-	allDirs, _ = ioutil.ReadDir(inPath)
-	numbJobs = len(allDirs)
-
-	//defer fmt.Println("You can find your compressed files here: " + "[" + outPath + "]")
-}
 
 // This function sets the amount of goroutines that are going to proces the data
 func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
+
 	for i := 0; i < nrw; i++ {
 		go writeTheFiles(i, jobs, results)
+	}
+}
+
+// Collects all the results of writeTheFiles
+// and ensures that the goroutines have finished
+func recibeAnswers(numbJobs int, results chan DataPath) {
+	for i := 0; i < numbJobs; i++ {
+		data := <-results
+		fmt.Println(data.fName)
 	}
 }
 
@@ -73,7 +47,7 @@ func sendJobsF(jobs chan DataPath) {
 		// the goroutine is done
 
 		// Is the child folder inside the parent folder
-		childDir := inPath + folder.Name()
+		childDir := f.InPath + folder.Name()
 
 		// Get the info of the current folder
 		// So
@@ -93,7 +67,7 @@ func sendJobsF(jobs chan DataPath) {
 				//Builds the structure and  it sends them through a channel
 				jobs <- DataPath{
 					files:    filesInsideOf,
-					exitPath: outPath,
+					exitPath: f.OutPath,
 					cDir:     childDir,
 					fName:    folder.Name(),
 				}
@@ -102,6 +76,7 @@ func sendJobsF(jobs chan DataPath) {
 		case mode.IsRegular():
 			fmt.Println("Files without a parent directory cannot be compressed")
 			numbJobs--
+
 		}
 	}
 	//	Close the channel so no more values will be sent to it
@@ -110,19 +85,10 @@ func sendJobsF(jobs chan DataPath) {
 
 }
 
-// Collects all the results of writeTheFiles
-// and ensures that the goroutines have finished
-func recibeAnswers(numbJobs int, results chan DataPath) {
-	for i := 0; i < numbJobs; i++ {
-		data := <-results
-		fmt.Println(data.fName)
-	}
-}
-
 // writeTheFiles ... weasd
 //Is used by the goroutines
 // Takes a struct (DataPath) and uses it to create the zip files
-//while fetching the files that are inside of the child folder
+// while fetching the files that are inside of the child folder
 func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
 
 	for data := range jobs {
