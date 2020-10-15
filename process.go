@@ -38,29 +38,25 @@ func recibeAnswers(numbJobs int, results chan DataPath) {
 // sendJobsF ... Sends a typeStruct to the goroutines that are running
 func sendJobsF(jobs chan DataPath) {
 
-	// Getas the name of every file in the current directory
+	// Iterates on each child folder
 	for _, folder := range allDirs {
 
-		// Adds the number of current goroutines
-
-		// It drecrements the number of goroutines by 1 after
-		// the goroutine is done
-
-		// Is the child folder inside the parent folder
+		// childDir Is the child folder inside the parent folder
 		childDir := f.InPath + folder.Name()
 
-		// Get the info of the current folder
-		// So
+		// Get's the info of the current folder
 		fi, err := os.Stat(childDir)
 		if err != nil {
 			fmt.Println(err)
 		}
-		//I can validate if it's a file or a directory
+
+		//Here asks if it's a file or a folder
 		switch mode := fi.Mode(); {
 		case mode.IsDir():
 			{
-				//I add a slash to point inside the child directory
+				//Adds a slash to point inside the child directory
 				childDir := childDir + "/"
+
 				// Get's all the files inside of the given path
 				filesInsideOf, _ := ioutil.ReadDir(childDir)
 
@@ -76,13 +72,12 @@ func sendJobsF(jobs chan DataPath) {
 		case mode.IsRegular():
 			fmt.Println("Files without a parent directory cannot be compressed")
 			numbJobs--
-
 		}
 	}
 	//	Close the channel so no more values will be sent to it
-	// so the recivers knows it don't longer need to wayt
+	// so the recivers knows it don't longer need to way
+	// When the channel is closed the gorroutines are now free to start
 	close(jobs)
-
 }
 
 // writeTheFiles ... weasd
@@ -132,5 +127,4 @@ func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
 		data.fName = strconv.Itoa(id) + ": " + data.fName
 		results <- data
 	}
-
 }
