@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DanielUlises98/FoldersCompresor/flags"
+	"github.com/DanielUlises98/FoldersCompresor/tracker"
 )
 
 var (
@@ -14,17 +15,13 @@ var (
 	numbJobs int
 )
 
-// things to implement
-//1.-better validation almost
-// 2.-more(better) flags almost
-
-// 3.- better output(cleaner information presented to the user)
-// test what if workers>jobs
+// better output(cleaner information presented to the user)
 // Rewrite the program so it uses chuncks of RAM
+// validate if the zipfile already exists
 
 func main() {
 
-	defer timeTrack(time.Now(), "Program ")
+	defer tracker.TimeTrack(time.Now(), "Program ")
 
 	allDirs, _ = ioutil.ReadDir(f.InPath)
 	numbJobs = len(allDirs)

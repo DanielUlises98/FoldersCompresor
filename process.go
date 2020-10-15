@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 )
@@ -22,11 +23,11 @@ type DataPath struct {
 func initializeWorkers(nrw int, jobs chan DataPath, results chan DataPath) {
 
 	for i := 0; i < nrw; i++ {
-		go writeTheFiles(i, jobs, results)
+		go workers(i, jobs, results)
 	}
 }
 
-// Collects all the results of writeTheFiles
+// Collects all the results of workers
 // and ensures that the goroutines have finished
 func recibeAnswers(numbJobs int, results chan DataPath) {
 	for i := 0; i < numbJobs; i++ {
@@ -45,10 +46,7 @@ func sendJobsF(jobs chan DataPath) {
 		childDir := f.InPath + folder.Name()
 
 		// Get's the info of the current folder
-		fi, err := os.Stat(childDir)
-		if err != nil {
-			fmt.Println(err)
-		}
+		fi, _ := isAInfo(childDir)
 
 		//Here asks if it's a file or a folder
 		switch mode := fi.Mode(); {
@@ -80,51 +78,76 @@ func sendJobsF(jobs chan DataPath) {
 	close(jobs)
 }
 
-// writeTheFiles ... weasd
+// workers ... weasd
 //Is used by the goroutines
 // Takes a struct (DataPath) and uses it to create the zip files
 // while fetching the files that are inside of the child folder
-func writeTheFiles(id int, jobs <-chan DataPath, results chan<- DataPath) {
+func workers(id int, jobs <-chan DataPath, results chan<- DataPath) {
 
 	for data := range jobs {
+		// Returns  a new file so i can defer the close  and new ZipWriter
+		zipFile, zipWriter := newZipFile(data.exitPath + data.fName + ".zip")
 
-		// Creates the zip file with the given name
-		newZipFile, err := os.Create(data.exitPath + data.fName + ".zip")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		// Needs to be open the whole process
-		// When the function ends the defer is called and the process is terminated
-		defer newZipFile.Close()
-
-		// takes the created file and makes into a zip file
-		//Creates a new zip writer
-		zipWriter := zip.NewWriter(newZipFile)
-
-		// Needs to be open the whole process
-		// When the function ends the defer is called and the process is terminated
+		// // Needs to be open the whole process
+		// // When the function ends the defer is called and the process is terminated
+		defer zipFile.Close()
 		defer zipWriter.Close()
 
-		for _, fileName := range data.files {
-			// Get's the whole file in a slice of bytes
-			dat, err := ioutil.ReadFile(data.cDir + fileName.Name())
-			if err != nil {
-				fmt.Println(err)
-			}
+		for _, file := range data.files {
 
-			// creates the file inside of the zip
-			f, err := zipWriter.Create(data.fName + "/" + fileName.Name())
-			if err != nil {
-				fmt.Println(err)
-			}
-			// Writes the bytes in the created file
-			_, err = f.Write(dat)
-			if err != nil {
-				fmt.Println(err)
-			}
+			writeFiles(file.Name(), data.cDir, data.fName, zipWriter)
 		}
 		data.fName = strconv.Itoa(id) + ": " + data.fName
 		results <- data
+	}
+}
+
+func isAInfo(path string) (os.FileInfo, bool) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		log.Println("there it was an error while verifying the integrity of this file: [", path, "] ")
+	}
+	if fi.IsDir() {
+		return fi, true
+	}
+	if fi.Mode().IsRegular() {
+		return nil, true
+	}
+	return nil, true
+}
+
+func newZipFile(pathName string) (*os.File, *zip.Writer) {
+
+	// Creates the zip file with the given name
+	zipFile, err := os.Create(pathName)
+	if err != nil {
+		log.Fatal(err, "Couldn't create a pointer to a File")
+	}
+	// Takes the created file and makes into a zip file
+	//Creates a new zip writer
+	zipWriter := zip.NewWriter(zipFile)
+
+	return zipFile, zipWriter
+}
+
+func writeFiles(fileName, cDir, fName string, zipWriter *zip.Writer) {
+	fi, isFile := isAInfo(cDir + fileName)
+	// Get's the whole file in a slice of bytes
+	if isFile && fi == nil {
+		dat, err := ioutil.ReadFile(cDir + fileName)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// creates the file inside of the zip
+		f, err := zipWriter.Create(fName + "/" + fileName)
+		if err != nil {
+			log.Println(err)
+		}
+		// Writes the bytes in the created file
+		_, err = f.Write(dat)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
